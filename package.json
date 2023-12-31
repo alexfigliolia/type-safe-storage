@@ -1,6 +1,6 @@
 {
   "name": "@figliolia/type-safe-storage",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A type-safe wrapper around React Native's Async Storage that re-implements the entire API",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

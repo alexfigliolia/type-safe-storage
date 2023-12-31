@@ -12,7 +12,6 @@ import type {
   ValidatedObjectTuples,
   ValidatedTuples,
 } from "./types";
-import { ValueParser } from "./ValueParser";
 
 /**
  * ## Type Safe Storage
@@ -61,9 +60,7 @@ import { ValueParser } from "./ValueParser";
  * // Passes validation
  * ```
  */
-export class TypeSafeStorage<
-  T extends Record<string, any>
-> extends ValueParser {
+export class TypeSafeStorage<T extends Record<string, any>> {
   /**
    * Erases *all* `AsyncStorage` for all clients, libraries, etc. You probably
    * don't want to call this; use `removeItem` or `multiRemove` to clear only
@@ -104,7 +101,7 @@ export class TypeSafeStorage<
     callback?: CallbackWithResult<string> | undefined
   ) {
     const value = await AsyncStorage.getItem(key, callback);
-    return this.parseValue(value) as T[K] | null;
+    return (value === null ? null : JSON.parse(value)) as T[K] | null;
   }
 
   /**
@@ -116,7 +113,6 @@ export class TypeSafeStorage<
     value: T[K],
     callback?: Callback | undefined
   ) {
-    this.validateJSON(value);
     return AsyncStorage.mergeItem(key, JSON.stringify(value), callback);
   }
 
@@ -132,7 +128,7 @@ export class TypeSafeStorage<
     const values = await AsyncStorage.multiGet(keys, callback);
     return values.map(([key, value]) => [
       key,
-      this.parseValue(value),
+      value === null ? null : JSON.parse(value),
     ]) as MultiGetReturnValue<T, K>;
   }
 
@@ -146,7 +142,6 @@ export class TypeSafeStorage<
   >(keyValuePairs: V, callback?: MultiCallback) {
     return AsyncStorage.multiMerge(
       keyValuePairs.map(([key, value]) => {
-        this.validateJSON(value);
         return [key, this.stringify(value)];
       }),
       callback
@@ -200,5 +195,16 @@ export class TypeSafeStorage<
     callback?: Callback
   ) {
     return AsyncStorage.setItem(key, this.stringify(value), callback);
+  }
+
+  /**
+   * Returns the input value stringified. For inputs that
+   * are already strings, the input value is returned
+   */
+  private stringify(value: any) {
+    if (typeof value === "string") {
+      return value;
+    }
+    return JSON.stringify(value);
   }
 }
