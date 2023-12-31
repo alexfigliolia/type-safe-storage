@@ -101,7 +101,7 @@ export class TypeSafeStorage<T extends Record<string, any>> {
     callback?: CallbackWithResult<string> | undefined
   ) {
     const value = await AsyncStorage.getItem(key, callback);
-    return (value === null ? null : JSON.parse(value)) as T[K] | null;
+    return this.parseValue(value) as T[K] | null;
   }
 
   /**
@@ -128,7 +128,7 @@ export class TypeSafeStorage<T extends Record<string, any>> {
     const values = await AsyncStorage.multiGet(keys, callback);
     return values.map(([key, value]) => [
       key,
-      value === null ? null : JSON.parse(value),
+      this.parseValue(value),
     ]) as MultiGetReturnValue<T, K>;
   }
 
@@ -206,5 +206,20 @@ export class TypeSafeStorage<T extends Record<string, any>> {
       return value;
     }
     return JSON.stringify(value);
+  }
+
+  /**
+   * Attempts to parse incoming values via JSON.parse and
+   * returns the input if any errors occur
+   */
+  private parseValue(value: any) {
+    if (value === null) {
+      return null;
+    }
+    try {
+      return JSON.parse(value);
+    } catch (error) {
+      return value;
+    }
   }
 }
