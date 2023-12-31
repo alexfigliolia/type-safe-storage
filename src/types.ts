@@ -3,7 +3,7 @@ export type MultiGetReturnValue<
   T extends readonly Extract<keyof S, string>[]
 > = {
   [I in keyof T]: [key: T[I], value: S[T[I]] | null];
-};
+} & { length: T["length"] };
 
 export type InputTuples<S extends Record<string, any>> = [
   key: Extract<keyof S, string>,
