@@ -1,13 +1,15 @@
-export type MultiGetReturnValue<
+import type { AsyncStorage } from "@react-native-async-storage/async-storage";
+
+export type GetManyResult<
   S extends Record<string, any>,
-  T extends readonly Extract<keyof S, string>[]
+  T extends readonly Extract<keyof S, string>[],
 > = {
-  [I in keyof T]: [key: T[I], value: S[T[I]] | null];
-} & { length: T["length"] };
+  [K in T[number]]: S[K] | null;
+};
 
 export type InputTuples<S extends Record<string, any>> = [
   key: Extract<keyof S, string>,
-  value: S[Extract<keyof S, string>]
+  value: S[Extract<keyof S, string>],
 ][];
 
 export type AvailableTuples<S extends Record<string, any>> = {
@@ -16,29 +18,13 @@ export type AvailableTuples<S extends Record<string, any>> = {
 
 export type ValidatedTuples<
   S extends Record<string, any>,
-  K extends InputTuples<S>
+  K extends InputTuples<S>,
 > = {
   [I in keyof K]: AvailableTuples<S>[K[I][0]];
 };
 
-export type ValidatedObjectTuples<
-  S extends Record<string, any>,
-  K extends InputTuples<S>
-> = {
-  [I in keyof K]: [
-    key: ExtendsObject<K[I][0], S[K[I][0]]>,
-    value: ForceObjectType<S[K[I][0]]>
-  ];
-};
-
-export type ExtendsObject<K extends string, V> = V extends Record<string, any>
-  ? K
-  : V extends any[]
-  ? K
-  : never;
-
-export type ForceObjectType<T> = T extends Record<string, any>
-  ? T
-  : T extends any[]
-  ? T
-  : never;
+export interface SerializationOptions<T extends Record<string, any>> {
+  storage?: AsyncStorage;
+  serializer?: (value: any) => string;
+  deserializer?: <K extends Extract<keyof T, string>>(value: string) => T[K];
+}

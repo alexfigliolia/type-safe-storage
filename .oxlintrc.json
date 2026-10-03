@@ -1,0 +1,75 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "categories": {},
+  "rules": {},
+  "settings": {
+    "jsdoc": {
+      "ignorePrivate": false,
+      "ignoreInternal": false,
+      "ignoreReplacesDocs": true,
+      "overrideReplacesDocs": true,
+      "augmentsExtendsReplacesDocs": false,
+      "implementsReplacesDocs": false,
+      "exemptDestructuredRootsFromChecks": false,
+      "tagNamePreference": {}
+    },
+    "vitest": {
+      "typecheck": false
+    }
+  },
+  "env": {
+    "builtin": true
+  },
+  "globals": {},
+  "ignorePatterns": ["node_modules/**", "./target/**", "fixture/**", "dist"],
+  "overrides": [
+    {
+      "files": ["**/*.{ts}"],
+      "plugins": [
+        "node",
+        "eslint",
+        "import",
+        "promise",
+        "typescript",
+        "oxc",
+        "react",
+        "react-perf"
+      ],
+      "rules": {
+        "react/no-unsafe": "off",
+        "react/rules-of-hooks": "error",
+        "react/jsx-no-duplicate-props": "error",
+        "react/exhaustive-deps": "error",
+        "typescript/require-await": "error",
+        "typescript/prefer-readonly": "error",
+        "typescript/no-useless-default-assignment": "off",
+        "typescript/no-explicit-any": "off",
+        "typescript/no-unsafe-assignment": "off",
+        "@typescript-eslint/prefer-readonly": "error",
+        "typescript/no-floating-promises": [
+          "error",
+          {
+            "ignoreVoid": true
+          }
+        ],
+        "typescript/strict-boolean-expressions": "off",
+        "typescript/consistent-type-imports": "error",
+        "no-unused-vars": [
+          "error",
+          {
+            "args": "all",
+            "varsIgnorePattern": "^_",
+            "destructuredArrayIgnorePattern": "^_",
+            "argsIgnorePattern": "^_"
+          }
+        ],
+        "import/no-cycle": [
+          "error",
+          {
+            "maxDepth": 3
+          }
+        ]
+      }
+    }
+  ]
+}
