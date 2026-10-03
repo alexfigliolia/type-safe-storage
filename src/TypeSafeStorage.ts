@@ -1,15 +1,11 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import AsyncStorage, {
+  type AsyncStorage as AsyncStorageType,
+} from "@react-native-async-storage/async-storage";
+
 import type {
-  Callback,
-  CallbackWithResult,
-  MultiCallback,
-  MultiGetCallback,
-} from "@react-native-async-storage/async-storage/lib/typescript/types";
-import type {
-  ExtendsObject,
+  GetManyResult,
   InputTuples,
-  MultiGetReturnValue,
-  ValidatedObjectTuples,
+  SerializationOptions,
   ValidatedTuples,
 } from "./types";
 
@@ -24,184 +20,186 @@ import type {
  * import { TypeSafeStorage } from "@figliolia/type-safe-storage";
  *
  * export const MyStorage = new TypeSafeStorage<{
- *   userID: string;
- *   connections: string[];
+ *   user: { id: string, friendIds: string[] },
+ *   auth: { token: string, refreshToken: string },
  *   settings: Record<string, boolean>;
- * }>();
+ * }>(config);
  * ```
+ * ### Configuration
+ * A configuration can be passed to `TypeSafeStorage` to customize how
+ * values are serialized and deserialized. When a config object is
+ * omitted, `JSON.stringify()` and `JSON.parse()` will be used to
+ * serialize and deserialize incoming and outgoing values from storage
+ * ```typescript
+ * import { TypeSafeStorage } from "@figliolia/type-safe-storage";
+ *
+ * export const MyStorage = new TypeSafeStorage<MySchema>({
+ *   serializer: (value: any) => {
+ *     // custom serialization logic
+ *     // return a string
+ *   },
+ *   deserializer: (value: string) => {
+ *     // custom deserialization logic
+ *     // return a runtime value
+ *   },
+ * });
+ * ```
+ *
  * ### Getters
  * ```typescript
  * import { MyStorage } from "./MyStorage";
  *
- * const userID = await MyStorage.getItem("userID");
- * // string | null
+ * const user = await MyStorage.getItem("user");
+ * // { id: string, friendIds: string[] } | null
  * const someValue = await MyStorage.getItem("some-unknown-key");
  * // typescript type validation fails
- * const [userID, connections] = await MyStorage.multiGet(["userID", "connections"]);
- * // userID: string | null
- * // connections: string[] | null
- * const [userID, someUnknownKey] = await MyStorage.multiGet(["userID", "some-unknown-key"]);
+ * const [user, auth] = await MyStorage.getMany(["user", "auth"]);
+ * // user: { id: string, friendIds: string[] } | null
+ * // auth: { token: string, refreshToken: string } | null
+ * const [user, someUnknownKey] = await MyStorage.getMany(["user", "some-unknown-key"]);
  * // typescript type validation fails
  * ```
  * ### Setters
  * ```typescript
  * import { MyStorage } from "./MyStorage";
  *
- * await MyStorage.setItem("userID", "123");
+ * await MyStorage.setItem("user", { id: "123", friendIds: [1, 2, 3, 4] });
  * // Passes validation
- * await MyStorage.setItem("userID", 123);
+ * await MyStorage.setItem("user", 123);
  * // typescript type validation fails
  * await MyStorage.setItem("some-unknown-key", "some-value");
  * // typescript type validation fails
- * await MyStorage.multiSet([
- *   ["userID", "123"],
- *   ["connections", ["1", "2", "3"]]
+ * await MyStorage.setMany([
+ *   ["user", { id: "123", friendIds: [1, 2, 3, 4] }],
+ *   ["auth", { token: "api-token", refreshToken: "refresh-api-token" }]
  * ]);
+ * // Passes validation
+ * await MyStorage.setMany({
+ *   user: { id: "123", friendIds: [1, 2, 3, 4] },
+ *   auth: { token: "api-token", refreshToken: "refresh-api-token" }
+ * });
  * // Passes validation
  * ```
  */
 export class TypeSafeStorage<T extends Record<string, any>> {
+  private readonly storage: AsyncStorageType;
+  private readonly options?: SerializationOptions<T>;
+  constructor(options?: SerializationOptions<T>) {
+    this.options = options;
+    this.storage = options?.storage ?? AsyncStorage;
+  }
   /**
-   * Erases *all* `AsyncStorage` for all clients, libraries, etc. You probably
-   * don't want to call this; use `removeItem` or `multiRemove` to clear only
-   * your app's keys.
-   *
-   * See https://react-native-async-storage.github.io/async-storage/docs/api#clear
+   * Clears all data from the storage.
+   * @returns A Promise that resolves once the storage has been cleared.
+   * @throws {@link AsyncStorageError} if clearing fails.
    */
-  public clear(callback?: Callback) {
-    return AsyncStorage.clear(callback);
+  public clear() {
+    return this.storage.clear();
   }
 
   /**
-   * Flushes any pending requests using a single batch call to get the data.
-   *
-   * See https://react-native-async-storage.github.io/async-storage/docs/api#flushgetrequests
-   * */
-  public flushGetRequests() {
-    return AsyncStorage.flushGetRequests();
+   * Retrieves all keys currently stored.
+   * @returns A Promise resolving to an array of keys.
+   * @throws {@link AsyncStorageError} if retrieval fails.
+   */
+  public getAllKeys() {
+    return this.storage.getAllKeys() as Promise<readonly (keyof T)[]>;
   }
 
   /**
-   * Gets *all* keys known to your app; for all callers, libraries, etc.
-   *
-   * See https://react-native-async-storage.github.io/async-storage/docs/api#getallkeys
+   * Retrieves a single item from storage.
+   * @param key - The key identifying the stored value.
+   * @returns A Promise resolving to the stored value,
+   *          or `null` if the key does not exist.
+   * @throws {@link AsyncStorageError}
    */
-  public getAllKeys(
-    callback?: CallbackWithResult<readonly (keyof T)[]> | undefined
-  ) {
-    return AsyncStorage.getAllKeys(callback) as Promise<readonly (keyof T)[]>;
-  }
-  /**
-   * Fetches an item for a `key` and invokes a callback upon completion.
-   *
-   * See https://react-native-async-storage.github.io/async-storage/docs/api#getitem
-   */
-  public async getItem<K extends Extract<keyof T, string>>(
-    key: K,
-    callback?: CallbackWithResult<string> | undefined
-  ) {
-    const value = await AsyncStorage.getItem(key, callback);
+  public async getItem<K extends Extract<keyof T, string>>(key: K) {
+    const value = await this.storage.getItem(key);
     return this.parseValue(value) as T[K] | null;
   }
 
   /**
-   * Merges an existing `key` value with an input value, assuming both values
-   * are valid JSON.
+   * Retrieves multiple items from storage.
+   * @param keys - An array of keys to retrieve.
+   * @returns A Promise resolving to an object mapping each key to its stored value,
+   *          or `null` for keys that do not exist.
+   * @throws {@link AsyncStorageError} if retrieval fails.
    */
-  public async mergeItem<K extends Extract<keyof T, string>, V extends T[K]>(
-    key: ExtendsObject<K, V>,
-    value: T[K],
-    callback?: Callback | undefined
+  public async getMany<K extends readonly Extract<keyof T, string>[]>(keys: K) {
+    const values = await this.storage.getMany(keys as unknown as string[]);
+    for (const key in values) {
+      values[key] = this.parseValue(values[key]);
+    }
+    return values as GetManyResult<T, K>;
+  }
+
+  /**
+   * Removes multiple items from storage.
+   * @param keys - An array of keys to remove.
+   * @returns A Promise that resolves once all keys have been removed.
+   * @throws {@link AsyncStorageError} if removal fails.
+   */
+  public multiRemove(keys: Extract<keyof T, string>[]) {
+    return this.storage.removeMany(keys);
+  }
+
+  /**
+   * Stores multiple items in storage.
+   * @param keyValuePairs - An object or tuple array containing key-value pairs to store.
+   * @returns A Promise that resolves once all items have been written.
+   * @throws {@link AsyncStorageError} if writing fails.
+   */
+  public setMany<K extends InputTuples<T>, V extends ValidatedTuples<T, K>>(
+    keyValuePairs: V | Partial<T>,
   ) {
-    return AsyncStorage.mergeItem(key, JSON.stringify(value), callback);
+    let input: Record<string, string>;
+    if (Array.isArray(keyValuePairs)) {
+      input = keyValuePairs.reduce<Record<string, string>>((acc, next) => {
+        const [key, value] = next;
+        acc[key] = this.serialize(value);
+        return acc;
+      }, {});
+    } else {
+      input = Object.keys(keyValuePairs).reduce<Record<string, string>>(
+        (acc, next) => {
+          acc[next] = this.serialize(keyValuePairs[next]);
+          return acc;
+        },
+        {},
+      );
+    }
+    return this.storage.setMany(input);
   }
 
   /**
-   * This allows you to batch the fetching of items given an array of `key`
-   * inputs. Your callback will be invoked with an array of corresponding
-   * key-value pairs found.
+   * Removes an item from storage.
+   * @param key - The key of the item to remove.
+   * @returns A Promise that resolves once the key has been removed.
+   * @throws {@link AsyncStorageError} if removal fails.
    */
-  public async multiGet<K extends readonly Extract<keyof T, string>[]>(
-    keys: K,
-    callback?: MultiGetCallback
-  ) {
-    const values = await AsyncStorage.multiGet(keys, callback);
-    return values.map(([key, value]) => [
-      key,
-      this.parseValue(value),
-    ]) as MultiGetReturnValue<T, K>;
+  public removeItem<K extends Extract<keyof T, string>>(key: K) {
+    return this.storage.removeItem(key);
   }
 
   /**
-   * Batch operation to merge in existing and new values for a given set of
-   * keys. This assumes that the values are valid JSON.
+   * Stores or updates an item in storage.
+   * @param key - The key under which the value will be stored.
+   * @param value - The value to store.
+   * @returns A Promise that resolves once the value has been written.
+   * @throws {@link AsyncStorageError} if writing fails.
    */
-  public multiMerge<
-    K extends InputTuples<T>,
-    V extends ValidatedObjectTuples<T, K>
-  >(keyValuePairs: V, callback?: MultiCallback) {
-    return AsyncStorage.multiMerge(
-      keyValuePairs.map(([key, value]) => {
-        return [key, this.stringify(value)];
-      }),
-      callback
-    );
+  public setItem<K extends Extract<keyof T, string>>(key: K, value: T[K]) {
+    return this.storage.setItem(key, this.serialize(value));
   }
 
   /**
-   * Call this to batch the deletion of all keys in the `keys` array.
-   *
-   * See https://react-native-async-storage.github.io/async-storage/docs/api#multiremove
+   * Serializes storage values to string using the specified serializer
+   * or JSON.stringify
    */
-  public multiRemove(
-    keys: Extract<keyof T, string>[],
-    callback?: MultiCallback
-  ) {
-    return AsyncStorage.multiRemove(keys, callback);
-  }
-
-  /**
-   * Use this as a batch operation for storing multiple key-value pairs. When
-   * the operation completes you'll get a single callback with any errors.
-   */
-  public multiSet<K extends InputTuples<T>, V extends ValidatedTuples<T, K>>(
-    keyValuePairs: V,
-    callback?: MultiCallback
-  ) {
-    return AsyncStorage.multiSet(
-      keyValuePairs.map(([key, value]) => [key, this.stringify(value)]),
-      callback
-    );
-  }
-
-  /**
-   * Removes an item for a `key` and invokes a callback upon completion.
-   *
-   * See https://react-native-async-storage.github.io/async-storage/docs/api#removeitem
-   */
-  public removeItem<K extends Extract<keyof T, string>>(
-    key: K,
-    callback?: Callback
-  ) {
-    return AsyncStorage.removeItem(key, callback);
-  }
-
-  /**
-   * Sets the value for a `key` and invokes a callback upon completion.
-   */
-  public setItem<K extends Extract<keyof T, string>>(
-    key: K,
-    value: T[K],
-    callback?: Callback
-  ) {
-    return AsyncStorage.setItem(key, this.stringify(value), callback);
-  }
-
-  /**
-   * Returns the input value stringified. For inputs that
-   * are already strings, the input value is returned
-   */
-  private stringify(value: any) {
+  private serialize(value: any) {
+    if (this.options?.serializer) {
+      return this.options.serializer(value);
+    }
     if (typeof value === "string") {
       return value;
     }
@@ -209,16 +207,19 @@ export class TypeSafeStorage<T extends Record<string, any>> {
   }
 
   /**
-   * Attempts to parse incoming values via JSON.parse and
+   * Attempts to parse incoming values via JSON.parse or the configured deserializer.
    * returns the input if any errors occur
    */
   private parseValue(value: any) {
+    if (this.options?.deserializer) {
+      return this.options.deserializer(value);
+    }
     if (value === null) {
       return null;
     }
     try {
       return JSON.parse(value);
-    } catch (error) {
+    } catch {
       return value;
     }
   }
