@@ -134,6 +134,17 @@ export class TypeSafeStorage<T extends Record<string, any>> {
   }
 
   /**
+   * Retrieves multiple items from storage.
+   * @param keys - An array of keys to retrieve.
+   * @returns A Promise resolving to an object mapping each key to its stored value,
+   *          or `null` for keys that do not exist.
+   * @throws {@link AsyncStorageError} if retrieval fails.
+   */
+  public multiGet<K extends readonly Extract<keyof T, string>[]>(keys: K) {
+    return this.getMany(keys);
+  }
+
+  /**
    * Removes multiple items from storage.
    * @param keys - An array of keys to remove.
    * @returns A Promise that resolves once all keys have been removed.
@@ -169,6 +180,18 @@ export class TypeSafeStorage<T extends Record<string, any>> {
       );
     }
     return this.storage.setMany(input);
+  }
+
+  /**
+   * Stores multiple items in storage.
+   * @param keyValuePairs - An object or tuple array containing key-value pairs to store.
+   * @returns A Promise that resolves once all items have been written.
+   * @throws {@link AsyncStorageError} if writing fails.
+   */
+  public multiSet<K extends InputTuples<T>, V extends ValidatedTuples<T, K>>(
+    keyValuePairs: V | Partial<T>,
+  ) {
+    return this.setMany(keyValuePairs);
   }
 
   /**

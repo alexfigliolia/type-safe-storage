@@ -16,16 +16,19 @@ npm i -S @figliolia/type-safe-storage @react-native-async-storage/async-storage
 import { TypeSafeStorage } from "@figliolia/type-safe-storage";
 
 export const MyStorage = new TypeSafeStorage<{
-  user: { id: string, friendIds: string[] },
-  auth: { token: string, refreshToken: string },
+  user: { id: string; friendIds: string[] };
+  auth: { token: string; refreshToken: string };
   settings: Record<string, boolean>;
 }>(config);
 ```
+
 ### Configuration
+
 A configuration can be passed to `TypeSafeStorage` to customize how
 values are serialized and deserialized. When a config object is
 omitted, `JSON.stringify()` and `JSON.parse()` will be used to
 serialize and deserialize incoming and outgoing values from storage
+
 ```typescript
 import { TypeSafeStorage } from "@figliolia/type-safe-storage";
 export const MyStorage = new TypeSafeStorage<MySchema>({
@@ -39,8 +42,11 @@ export const MyStorage = new TypeSafeStorage<MySchema>({
   },
 });
 ```
+
 ### Getters
+
 Values can be retrieved by key and may return `null` if no value is set.
+
 ```typescript
 import { MyStorage } from "./MyStorage";
 
@@ -51,10 +57,15 @@ const someValue = await MyStorage.getItem("some-unknown-key");
 const [user, auth] = await MyStorage.getMany(["user", "auth"]);
 // user: { id: string, friendIds: string[] } | null
 // auth: { token: string, refreshToken: string } | null
-const [user, someUnknownKey] = await MyStorage.getMany(["user", "some-unknown-key"]);
+const [user, someUnknownKey] = await MyStorage.getMany([
+  "user",
+  "some-unknown-key",
+]);
 // typescript type validation fails
 ```
+
 ### Setters
+
 ```typescript
 import { MyStorage } from "./MyStorage";
 
@@ -66,25 +77,28 @@ await MyStorage.setItem("some-unknown-key", "some-value");
 // typescript type validation fails
 await MyStorage.setMany([
   ["user", { id: "123", friendIds: [1, 2, 3, 4] }],
-  ["auth", { token: "api-token", refreshToken: "refresh-api-token" }]
+  ["auth", { token: "api-token", refreshToken: "refresh-api-token" }],
 ]);
 // Passes validation
 await MyStorage.setMany({
   user: { id: "123", friendIds: [1, 2, 3, 4] },
-  auth: { token: "api-token", refreshToken: "refresh-api-token" }
+  auth: { token: "api-token", refreshToken: "refresh-api-token" },
 });
 // Passes validation
 ```
 
 ### V3
+
 Version 3 of `AsyncStorage` allows for more than one instance to exist in a single application. To have more than one instance of `TypeSafeStorage` scoped to separate storage instances, you can use `createTypeSafeStorage`
 
 ```typescript
 import { createTypeSafeStorage } from "@figliolia/type-safe-storage";
 
-const myFirstDB = createTypeSafeStorage<Schema1>("myFirstDB", /* serializers */);
+const myFirstDB = createTypeSafeStorage<Schema1>("myFirstDB" /* serializers */);
 
-const mySecondDB = createTypeSafeStorage<Schema2>("mySecondDB", /* serializers */);
+const mySecondDB = createTypeSafeStorage<Schema2>(
+  "mySecondDB" /* serializers */,
+);
 ```
 
 Each database's API is identical to the examples above, but allow you to leverage multiple storage mechanisms.

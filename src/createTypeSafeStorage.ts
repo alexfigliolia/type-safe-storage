@@ -6,7 +6,9 @@ import type { SerializationOptions } from "./types";
 /**
  * Create Type Safe Storage
  *
- * Creates a `TypeSafeStorage` instance using a v3 `AsyncStorage` instance
+ * Creates a `TypeSafeStorage` instance using a v3 `AsyncStorage` instance.
+ * v3 `AsyncStorage` allows for more than one database to exist in a single
+ * application
  *
  * ```typescript
  * import { createTypeSafeStorage } from "@figliolia/type-safe-storage";
